@@ -1,0 +1,4 @@
+,@id,parameter,period,valueStatistic.@id
+0,http://environment.data.gov.uk/hydrology/id/measures/ac500b13-ff2b-46dc-81cd-6bdda72e68d7-level-max-86400-m-qualified,level,86400,http://environment.data.gov.uk/reference/def/core/maximum
+1,http://environment.data.gov.uk/hydrology/id/measures/ac500b13-ff2b-46dc-81cd-6bdda72e68d7-level-i-900-m-qualified,level,900,http://environment.data.gov.uk/reference/def/core/instantaneous
+2,http://environment.data.gov.uk/hydrology/id/measures/ac500b13-ff2b-46dc-81cd-6bdda72e68d7-level-min-86400-m-qualified,level,86400,http://environment.data.gov.uk/reference/def/core/minimum
