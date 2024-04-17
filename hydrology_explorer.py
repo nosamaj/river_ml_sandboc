@@ -27,8 +27,8 @@ def get_open_stations(start_date, end_date,property):
     print(
         base_uri + f"/hydrology/id/open/stations.json?from={start_date}&to={end_date}"
     )
-    return stations
-
+    df_stations = pd.json_normalize(stations.json()["items"])
+    return df_stations
 
 def get_measures(station):
     measures = requests.get(base_uri + f"hydrology/id/stations/{station}/measures.json")
@@ -104,11 +104,17 @@ if __name__ == "__main__":
     readings = get_readings("1900-01-01", "2024-12-31", measures.loc[1]["@id"])
     readings = readings.json()
     df_readings = pd.json_normalize(readings["items"])
+    df_stations = pd.json_normalize(stations)
+    df_raingauges = pd.json_normalize(raingauges)
 
     local_gauges = get_rainfall(raingauges,easting,northing,5000)
+    
 
 
     df_readings.to_parquet("packington.parquet")
-    stations.to_csv("stations.csv")
-    raingauges.to_csv("gauges.csv")
+    df_stations.to_csv("stations.csv")
+    df_raingauges.to_csv("gauges.csv")
     measures.to_csv("measures.csv")
+    # local_gauges.to_csv("local_gauges.csv")
+
+    
