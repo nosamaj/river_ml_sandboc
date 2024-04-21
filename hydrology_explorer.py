@@ -19,23 +19,74 @@ base_uri = "http://environment.data.gov.uk/"
 # [json] [html]
 
 
-def get_open_stations(start_date, end_date,property):
+def get_open_stations(start_date: str, end_date: str, property: str) -> pd.DataFrame:
+    """Get a list of open hydrology stations between a start and end date.
+
+    This function returns a pandas DataFrame containing information about open
+    hydrology stations that have data for the given property (e.g. water level,
+    rainfall).
+
+    Args:
+        start_date (str): Start date for which to get data (format: YYYY-MM-DD).
+        end_date (str): End date for which to get data (format: YYYY-MM-DD).
+        property (str): Property for which to get data (e.g. 'waterLevel',
+            'rainfall').
+
+    Returns:
+        pandas.DataFrame: A dataframe containing information about open
+            hydrology stations.
+    """
     stations = requests.get(
         base_uri
         + f"/hydrology/id/open/stations.json?from={start_date}&to={end_date}&observedProperty={property}&_limit=100000"
     )
     print(
-        base_uri + f"/hydrology/id/open/stations.json?from={start_date}&to={end_date}"
+        base_uri
+        + f"/hydrology/id/open/stations.json?from={start_date}&to={end_date}"
     )
+
     df_stations = pd.json_normalize(stations.json()["items"])
+
     return df_stations
 
-def get_measures(station):
+
+def get_measures(station: str) -> requests.Response:
+    """
+    Get a list of measures for a given station.
+
+    This function returns a requests.Response object containing information
+    about the measures associated with a given station.
+
+    Args:
+        station (str): The label of the station for which to retrieve measures.
+
+    Returns:
+        requests.Response: A requests.Response object containing information
+            about the measures associated with the given station.
+    """
     measures = requests.get(base_uri + f"hydrology/id/stations/{station}/measures.json")
     return measures
 
 
-def get_readings(start_date, end_date, measure_id):
+
+def get_readings(
+    start_date: str, end_date: str, measure_id: str
+) -> requests.Response:
+    """
+    Get readings between a start and end date for a given measure.
+
+    This function returns a requests.Response object containing the readings
+    between the given start and end dates for the given measure.
+
+    Args:
+        start_date (str): Start date for which to get data (format: YYYY-MM-DD).
+        end_date (str): End date for which to get data (format: YYYY-MM-DD).
+        measure_id (str): ID of the measure for which to retrieve readings.
+
+    Returns:
+        requests.Response: A requests.Response object containing the readings
+            between the given start and end dates for the given measure.
+    """
     readings = requests.get(
         f"{measure_id}/readings.json?mineq-date={start_date}&max-date={end_date}&_limit=1890000"
     )
@@ -70,51 +121,81 @@ def json_to_dataframe(json_response):
         return pd.DataFrame(json_response)
 
 
-def measures_from_station(stations_df, station_label):
-    row_number = stations_df[stations["label"] == station_label].index[0]
-    measures = pd.json_normalize(data["items"][row_number]["measures"])
+def measures_from_station(stations_df: pd.DataFrame,
+                          station_label: str) -> pd.DataFrame:
+    """
+    Retrieves the measures associated with a given station from a dataframe.
+
+    Args:
+        stations_df: A Pandas DataFrame containing information about hydrology
+            stations.
+        station_label: The label of the station for which to retrieve measures.
+
+    Returns:
+        A Pandas DataFrame representing the measures associated with the given
+        station.
+    """
+    row_number = stations_df[stations_df["label"] == station_label].index[0]
+    measures = pd.json_normalize(stations_df.loc[row_number, "measures"])
     return measures
 
 
-def get_rainfall(stations_df, location_easting,location_northing, distance):
+def get_rainfall(stations_df: pd.DataFrame,
+                 location_easting: float,
+                 location_northing: float,
+                 distance: float) -> pd.DataFrame:
+    """
+    Returns a subset of the hydrology stations that are within a given distance
+    of a given location.
+
+    Args:
+        stations_df: A Pandas DataFrame containing information about hydrology
+            stations.
+        location_easting: The easting coordinate of the reference location.
+        location_northing: The northing coordinate of the reference location.
+        distance: The maximum distance from the reference location (in metres).
+
+    Returns:
+        A Pandas DataFrame containing information about the subset of stations
+        that are within the given distance of the reference location.
+    """
     rainfall_sites = stations_df[
-    (abs(stations_df["easting"] - location_easting) <= distance) &
-    (abs(stations_df["northing"] - location_northing)<= distance)
+        (abs(stations_df["easting"] - location_easting) <= distance) &
+        (abs(stations_df["northing"] - location_northing) <= distance)
     ]
-        
+
     return rainfall_sites
 
 
+
 if __name__ == "__main__":
-    open = get_open_stations("2005-01-01", "2025-02-20","waterLevel")
+    open = get_open_stations("2005-01-01", "2025-02-20", "waterLevel")
     data = open.json()
-    print(data["items"])
     stations = pd.json_normalize(data["items"])
-    raingauges = get_open_stations("2005-01-01", "2025-02-20","rainfall")
-    raingauges = raingauges.json()
-    raingauges = pd.json_normalize(raingauges["items"])
-    # Get the row numbr as an index object
+    raingauges = get_open_stations("2005-01-01", "2025-02-20", "rainfall")
+    raingauges = pd.json_normalize(raingauges.json()["items"])
+
+    # Get the row number as an index object
     row_number = stations[stations["label"] == "Packington"].index[0]
-    easting = stations[stations["label"] == "Packington"]["easting"].values[0]
-    northing = stations[stations["label"] == "Packington"]["northing"].values[0]
+    easting = stations.loc[row_number, "easting"]
+    northing = stations.loc[row_number, "northing"]
     measures = measures_from_station(stations, "Packington")
-    # Print the row number
-    # print(row_numbe-*
 
-    readings = get_readings("1900-01-01", "2024-12-31", measures.loc[1]["@id"])
-    readings = readings.json()
-    df_readings = pd.json_normalize(readings["items"])
-    df_stations = pd.json_normalize(stations)
-    df_raingauges = pd.json_normalize(raingauges)
+    readings = get_readings("1900-01-01", "2024-12-31", measures.loc[1, "@id"])
+    readings = pd.json_normalize(readings.json()["items"])
 
-    local_gauges = get_rainfall(raingauges,easting,northing,5000)
-    
+    local_gauges = get_rainfall(
+        raingauges, easting, northing, 5000
+    )  # 5km from Packington
 
+    df_readings = readings
+    df_stations = stations
+    df_raingauges = raingauges
 
     df_readings.to_parquet("packington.parquet")
-    df_stations.to_csv("stations.csv")
-    df_raingauges.to_csv("gauges.csv")
-    measures.to_csv("measures.csv")
-    # local_gauges.to_csv("local_gauges.csv")
+    df_stations.to_csv("stations.csv", index=False)
+    df_raingauges.to_csv("gauges.csv", index=False)
+    measures.to_csv("measures.csv", index=False)
+    local_gauges.to_csv("local_gauges.csv", index=False)
 
     
