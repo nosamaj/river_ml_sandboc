@@ -44,6 +44,7 @@ def get_measures(station: str) -> pd.DataFrame:
     return df_measures
 
 
+
 def create_map(
     lat: float, lon: float, zoom_value: int, data: pd.DataFrame
 ) -> folium.Map:
@@ -74,16 +75,42 @@ def create_map(
     )
 
     return m
+@st.cache_data
+def get_stations(start_date: str, end_date: str, property: str) -> pd.DataFrame:
+    df_level_stations = hydrology_explorer.get_open_stations(
+    "2005-01-01", "2025-02-20", "*"
+    )
+    df_level_stations.rename({"@id": "id", "long": "lon"}, axis="columns", inplace=True)
+    return df_level_stations
 
+def update_station(selected_option):
+  st.session_state["station_name"] = selected_option
 
 ###################
 # Main body of app#
 ##################
 
-df_level_stations = hydrology_explorer.get_open_stations(
+df_level_stations = get_stations(
     "2005-01-01", "2025-02-20", "*"
 )
-df_level_stations.rename({"@id": "id", "long": "lon"}, axis="columns", inplace=True)
+
+with st.sidebar:
+    st.title("EA Open Data Viewer")
+
+    station_name = st.selectbox('Station Name',df_level_stations["label"])
+    
+
+df_rainfall_sites = pd.DataFrame()
+
+if station_name not in st.session_state:
+    st.session_state[station_name] = ""
+
+if df_rainfall_sites not in st.session_state:
+    st.session_state[df_rainfall_sites] = pd.DataFrame()
+
+
+
+
 
 for col in [
     "lat",
@@ -113,28 +140,18 @@ df_level_stations_display = df_level_stations[
 ]
 
 
-with st.expander("About this app"):
 
-    st.markdown(
-        """
-                
-    This application will allow the user to explore the EA flooding API for
-    
-    - Rainfall data from the EA Gauges
-    
-    - River Level and Flow data 
-    
-    - Groundwater and tide data
-    """
-    )
+station_lat = df_level_stations[df_level_stations["label"] == station_name]["lat"].values[0]
+station_lon = df_level_stations[df_level_stations["label"] == station_name]["lon"].values[0]
 
+station_easting = df_level_stations[df_level_stations["label"] == station_name]["easting"].values[0]
+station_northing = df_level_stations[df_level_stations["label"] == station_name]["northing"].values[0]
 
-with st.sidebar:
-    st.title("EA Open Data Viewer")
-    with st.form("my_form"):
-        st.write("Select Station to view")
-        station_name = st.selectbox(df_level_stations["label"])
-
+#get all rainfall sites within 8km 
+df_rainfall_sites = hydrology_explorer.get_rainfall(
+    station_easting, station_northing, 8000  
+)
+st.session_state['df_rainfall_sites'] = df_rainfall_sites
 
 col1, col2 = st.columns(2)
 
@@ -143,7 +160,9 @@ with col1:
 
 with col2:
     create_map(
-        lat=53.2, lon=-1.5, zoom_value=5, data=df_level_stations_display
+        lat=station_lat, lon=station_lon, zoom_value=11, data=df_level_stations_display
     ).to_streamlit(height=400)
 
-st.plotly_chart
+measures = hydrology_explorer.measures_from_station(df_level_stations,station_name)
+st.dataframe(measures)
+st.dataframe(df_rainfall_sites)

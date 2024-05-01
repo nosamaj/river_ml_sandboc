@@ -140,17 +140,14 @@ def measures_from_station(stations_df: pd.DataFrame,
     return measures
 
 
-def get_rainfall(stations_df: pd.DataFrame,
-                 location_easting: float,
+def get_rainfall(location_easting: float,
                  location_northing: float,
                  distance: float) -> pd.DataFrame:
     """
-    Returns a subset of the hydrology stations that are within a given distance
+    Returns a rainfall hydrology stations that are within a given distance
     of a given location.
 
     Args:
-        stations_df: A Pandas DataFrame containing information about hydrology
-            stations.
         location_easting: The easting coordinate of the reference location.
         location_northing: The northing coordinate of the reference location.
         distance: The maximum distance from the reference location (in metres).
@@ -159,13 +156,13 @@ def get_rainfall(stations_df: pd.DataFrame,
         A Pandas DataFrame containing information about the subset of stations
         that are within the given distance of the reference location.
     """
+    stations_df = get_open_stations("1970-01-01", "2025-02-20", "rainfall")
     rainfall_sites = stations_df[
         (abs(stations_df["easting"] - location_easting) <= distance) &
         (abs(stations_df["northing"] - location_northing) <= distance)
     ]
 
     return rainfall_sites
-
 
 
 if __name__ == "__main__":
