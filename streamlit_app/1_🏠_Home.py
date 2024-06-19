@@ -2,12 +2,13 @@
 # https://github.com/whitphx/streamlit
 # https://github.com/whitphx/streamlit/blob/master/LICENSE
 # Using data from https://environment.data.gov.uk under the Open Government Licence
-
+import sys
+sys.path.insert(0,'../utils')
 import streamlit as st
 import folium
 import leafmap.foliumap as leafmap
 import pandas as pd
-import hydrology_explorer
+from ..utils import hydrology_explorer
 
 # Set page title icons and options for layout
 st.set_page_config(page_title="Home", page_icon="🏠", layout="wide")

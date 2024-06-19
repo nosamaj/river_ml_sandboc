@@ -21,7 +21,7 @@ base_uri = "http://environment.data.gov.uk/"
 # [json] [html]
 
 
-def get_open_stations(start_date: str, end_date: str, property: str) -> pd.DataFrame:
+def get_open_stations(start_date: str, end_date: str) -> pd.DataFrame:
     """Get a list of open hydrology stations between a start and end date.
 
     This function returns a pandas DataFrame containing information about open
@@ -42,10 +42,7 @@ def get_open_stations(start_date: str, end_date: str, property: str) -> pd.DataF
         base_uri
         + f"/hydrology/id/open/stations.csv?from={start_date}&to={end_date}&observedProperty={property}&_limit=100000"
     )
-    print(
-        base_uri
-        + f"/hydrology/id/open/stations.csv?from={start_date}&to={end_date}"
-    )
+ 
     csv_string = stations.text
     df_stations = pd.read_csv(StringIO(csv_string))
     return df_stations
@@ -91,7 +88,7 @@ def measure_ids_from_stations_df(station_name: str, stations_df: pd.DataFrame) -
         
         measures_list = measures_str.split("|")
         return measures_list
-    if there are is just one measure return it as a list
+    #if there are is just one measure return it as a list
     else:
         measures_list =[measures_str]
         return measures_list
@@ -211,31 +208,47 @@ if __name__ == "__main__":
     #)  # 5km from Packington
 
     #df_readings.to_parquet("packington.parquet")
-    df_level_stations.to_csv("level_stations.csv", index=False)
+    #df_level_stations.to_csv("level_stations.csv", index=False)
     #df_raingauges.to_csv("gauges.csv", index=False)
     #measures.to_csv("measures.csv", index=False)
     #local_gauges.to_csv("local_gauges.csv", index=False)
 
-    df_all_stations = get_open_stations("1970-01-01", "2025-02-20", "*")
+###########
+#only nneed this bit if refeshing the list - better to use local copy
+    df_all_stations = get_open_stations("2000-01-03", "2025-02-20", "*")
+    
+    #df_all_stations.to_parquet("..\datasets\openstations_copy.parquet")
+    # #querry df_all_stations for label and riverName where either contain "hilden brook"
+    # ######
+    
+    
+############
 
-    #querry df_all_stations for label and riverName where either contain "hilden brook"
-    #or "Hilden Brook"
-
-
-
+    df_all_stations = pd.read_parquet("..\datasets\openstations_copy.parquet")
 
     
 
-    df_hilden_brook = df_all_stations[(df_all_stations['riverName'].str.lower() == 'hilden brook') | (df_all_stations['label'].str.lower() == 'hilden brook')]
-    df_hilden_brook.head()
+    df_mease = df_all_stations[(df_all_stations['riverName'].str.lower() == 'mease') | (df_all_stations['riverName'].str.lower() == 'river mease')]
+   
 
-    hilden_station_names = df_hilden_brook['label'].to_list()
+    mease_station_names = df_mease['label'].to_list()
 
 
 
     measures_dict = {}
 
-    for station in hilden_station_names:
-        measures_dict[station] = measure_ids_from_stations_df(station, df_hilden_brook)
+    for station in mease_station_names:
+        measures_dict[station] = measure_ids_from_stations_df(station, df_mease)
+    
+    for station,measures in measures_dict.items():
+        print(measures)
+        i=0
+        for measure in measures:
+            print(measure)
+            measure_name = measure.split("/")[-1]
+            df = get_readings("1970-01-01","2025-01-01",measure)
+            df.to_parquet(f"../datasets/River Mease/{station}-{measure_name}.parquet")
+            i+=1
 
     print(measures_dict)
+    

@@ -90,10 +90,11 @@ def get_readings(
     readings = requests.get(
         f"{measure_id}/readings.json?mineq-date={start_date}&max-date={end_date}&_limit=1890000"
     )
+    readings = pd.json_normalize(readings.json()["items"])
 
-    print(
-        f"{measure_id}/readings.json?mineq-date={start_date}&max-date={end_date}&_limit=1890000"
-    )
+    # print(
+    #     f"{measure_id}/readings.json?mineq-date={start_date}&max-date={end_date}&_limit=1890000"
+    # )
 
     return readings
 
@@ -166,33 +167,44 @@ def get_rainfall(location_easting: float,
 
 
 if __name__ == "__main__":
-    open = get_open_stations("2005-01-01", "2025-02-20", "waterLevel")
-    data = open.json()
-    stations = pd.json_normalize(data["items"])
-    raingauges = get_open_stations("2005-01-01", "2025-02-20", "rainfall")
-    raingauges = pd.json_normalize(raingauges.json()["items"])
+    #
+    #data = open.json()
+    df_stations = get_open_stations("2005-01-01", "2025-02-20", "*")
 
+    df_raingauges = get_open_stations("2005-01-01", "2025-02-20", "rainfall")
+ 
+    
     # Get the row number as an index object
-    row_number = stations[stations["label"] == "Packington"].index[0]
-    easting = stations.loc[row_number, "easting"]
-    northing = stations.loc[row_number, "northing"]
-    measures = measures_from_station(stations, "Packington")
+    row_number = df_stations[df_stations["label"] == "Packington"].index[0]
+    easting = df_stations.loc[row_number, "easting"]
+    northing = df_stations.loc[row_number, "northing"]
+    df_measures = measures_from_station(df_stations, "Packington")
 
-    readings = get_readings("1900-01-01", "2024-12-31", measures.loc[1, "@id"])
-    readings = pd.json_normalize(readings.json()["items"])
+    readings = get_readings("1900-01-01", "2024-12-31", df_measures.loc[1, "@id"])
+    df_readings = pd.json_normalize(readings.json()["items"])
 
     local_gauges = get_rainfall(
-        raingauges, easting, northing, 5000
+        easting, northing, 5000
     )  # 5km from Packington
 
     df_readings = readings
-    df_stations = stations
-    df_raingauges = raingauges
+    
+    
 
-    df_readings.to_parquet("packington.parquet")
-    df_stations.to_csv("stations.csv", index=False)
-    df_raingauges.to_csv("gauges.csv", index=False)
-    measures.to_csv("measures.csv", index=False)
-    local_gauges.to_csv("local_gauges.csv", index=False)
+    # df_readings.to_parquet("packington.parquet")
+    # df_stations.to_csv("stations.csv", index=False)
+    # df_raingauges.to_csv("gauges.csv", index=False)
+    # df_measures.to_csv("measures.csv", index=False)
+    # local_gauges.to_csv("local_gauges.csv", index=False)
 
     
+    df_frome = df_stations[(df_stations['riverName'].str.lower() == 'frome') | (df_stations['riverName'].str.lower() == 'somerset frome')]
+    
+    frome_labels = df_frome['label'].to_list()
+   
+    for label in frome_labels:
+        df_measures = measures_from_station(df_frome, label)
+        for index,row in df_measures.iterrows():
+            readings = get_readings("1900-01-01", "2024-12-31", row["@id"])
+            readings.to_parquet(f"../datasets/River frome/{label}-{row['parameter']}-{row['period']}.parquet")
+        #print(df_measures.head)
