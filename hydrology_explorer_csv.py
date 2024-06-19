@@ -1,6 +1,8 @@
 import requests
 import pandas as pd
 import json
+from io import StringIO
+from typing import List, Dict
 
 # API DOCS https://environment.data.gov.uk/hydrology/doc/reference#batch-api
 
@@ -38,19 +40,18 @@ def get_open_stations(start_date: str, end_date: str, property: str) -> pd.DataF
     """
     stations = requests.get(
         base_uri
-        + f"/hydrology/id/open/stations.json?from={start_date}&to={end_date}&observedProperty={property}&_limit=100000"
+        + f"/hydrology/id/open/stations.csv?from={start_date}&to={end_date}&observedProperty={property}&_limit=100000"
     )
     print(
         base_uri
-        + f"/hydrology/id/open/stations.json?from={start_date}&to={end_date}"
+        + f"/hydrology/id/open/stations.csv?from={start_date}&to={end_date}"
     )
-
-    df_stations = pd.json_normalize(stations.json()["items"])
-
+    csv_string = stations.text
+    df_stations = pd.read_csv(StringIO(csv_string))
     return df_stations
 
 
-def get_measures(station: str) -> requests.Response:
+def get_measures_station_id(station_id: str) -> pd.DataFrame:
     """
     Get a list of measures for a given station.
 
@@ -64,9 +65,36 @@ def get_measures(station: str) -> requests.Response:
         requests.Response: A requests.Response object containing information
             about the measures associated with the given station.
     """
-    measures = requests.get(base_uri + f"hydrology/id/stations/{station}/measures.json")
-    return measures
+    measures = requests.get(base_uri + f"hydrology/id/stations/{station_id}/measures.csv")
+    csv_string = measures.text
+    df_measures = pd.read_csv(StringIO(csv_string))
+    return df_measures
 
+
+def measure_ids_from_stations_df(station_name: str, stations_df: pd.DataFrame) -> List[str]:
+    """
+    Get a list of measure IDs associated with a station from a DataFrame.
+
+    Args:
+        station_name (str): The name of the station for which to retrieve measure IDs.
+        stations_df (pd.DataFrame): DataFrame containing station information.
+
+    Returns:
+        List[str]: A list of measure IDs associated with the given station.
+    """
+    #get the value of measures from the df where the label is the station name
+    measures_str = stations_df[stations_df["label"] == station_name]["measures"].values[0]
+    # split string into list of substrings based on a | delimiter
+    #measures_str = measures_str.replace("|",";")
+    print(measures_str)
+    if "|" in measures_str:
+        
+        measures_list = measures_str.split("|")
+        return measures_list
+    if there are is just one measure return it as a list
+    else:
+        measures_list =[measures_str]
+        return measures_list
 
 
 def get_readings(
@@ -88,14 +116,12 @@ def get_readings(
             between the given start and end dates for the given measure.
     """
     readings = requests.get(
-        f"{measure_id}/readings.json?mineq-date={start_date}&max-date={end_date}&_limit=1890000"
+        f"{measure_id}/readings.csv?mineq-date={start_date}&max-date={end_date}&_limit=1990000"
     )
+    csv_string = readings.text
+    df_readings = pd.read_csv(StringIO(csv_string))
 
-    print(
-        f"{measure_id}/readings.json?mineq-date={start_date}&max-date={end_date}&_limit=1890000"
-    )
-
-    return readings
+    return df_readings
 
 
 def json_to_dataframe(json_response):
@@ -166,33 +192,50 @@ def get_rainfall(location_easting: float,
 
 
 if __name__ == "__main__":
-    open = get_open_stations("2005-01-01", "2025-02-20", "waterLevel")
-    data = open.json()
-    stations = pd.json_normalize(data["items"])
-    raingauges = get_open_stations("2005-01-01", "2025-02-20", "rainfall")
-    raingauges = pd.json_normalize(raingauges.json()["items"])
+    df_level_stations= get_open_stations("2005-01-01", "2025-02-20", "waterLevel")
+    df_raingauges = get_open_stations("2005-01-01", "2025-02-20", "rainfall")
+    #raingauges = pd.json_normalize(raingauges.json()["items"])
 
     # Get the row number as an index object
-    row_number = stations[stations["label"] == "Packington"].index[0]
-    easting = stations.loc[row_number, "easting"]
-    northing = stations.loc[row_number, "northing"]
-    measures = measures_from_station(stations, "Packington")
+    #easting = df_level_stations[row_number, "easting"]
+    #northing = df_level_stations.loc[row_number, "northing"]
 
-    readings = get_readings("1900-01-01", "2024-12-31", measures.loc[1, "@id"])
-    readings = pd.json_normalize(readings.json()["items"])
 
-    local_gauges = get_rainfall(
-        raingauges, easting, northing, 5000
-    )  # 5km from Packington
+    # measures = measure_ids_from_stations_df("Packington", df_level_stations)
+    # for measure in measures:
+    #     readings = get_readings("1900-01-01", "2024-12-31", measure)
 
-    df_readings = readings
-    df_stations = stations
-    df_raingauges = raingauges
 
-    df_readings.to_parquet("packington.parquet")
-    df_stations.to_csv("stations.csv", index=False)
-    df_raingauges.to_csv("gauges.csv", index=False)
-    measures.to_csv("measures.csv", index=False)
-    local_gauges.to_csv("local_gauges.csv", index=False)
+    #local_gauges = get_rainfall(
+    #    raingauges, easting, northing, 5000
+    #)  # 5km from Packington
+
+    #df_readings.to_parquet("packington.parquet")
+    df_level_stations.to_csv("level_stations.csv", index=False)
+    #df_raingauges.to_csv("gauges.csv", index=False)
+    #measures.to_csv("measures.csv", index=False)
+    #local_gauges.to_csv("local_gauges.csv", index=False)
+
+    df_all_stations = get_open_stations("1970-01-01", "2025-02-20", "*")
+
+    #querry df_all_stations for label and riverName where either contain "hilden brook"
+    #or "Hilden Brook"
+
+
+
 
     
+
+    df_hilden_brook = df_all_stations[(df_all_stations['riverName'].str.lower() == 'hilden brook') | (df_all_stations['label'].str.lower() == 'hilden brook')]
+    df_hilden_brook.head()
+
+    hilden_station_names = df_hilden_brook['label'].to_list()
+
+
+
+    measures_dict = {}
+
+    for station in hilden_station_names:
+        measures_dict[station] = measure_ids_from_stations_df(station, df_hilden_brook)
+
+    print(measures_dict)
