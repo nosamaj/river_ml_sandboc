@@ -171,6 +171,8 @@ if __name__ == "__main__":
     #data = open.json()
     df_stations = get_open_stations("2005-01-01", "2025-02-20", "*")
 
+    df_stations.to_csv("../all_stations.csv")
+    
     df_raingauges = get_open_stations("2005-01-01", "2025-02-20", "rainfall")
  
     
@@ -198,13 +200,23 @@ if __name__ == "__main__":
     # local_gauges.to_csv("local_gauges.csv", index=False)
 
     
-    df_frome = df_stations[(df_stations['riverName'].str.lower() == 'frome') | (df_stations['riverName'].str.lower() == 'somerset frome')]
+    df_frome = df_stations[(df_stations['riverName'].str.lower() == 'hilden brook') | (df_stations['label'].str.lower() == 'hilden brook')]
     
     frome_labels = df_frome['label'].to_list()
    
     for label in frome_labels:
         df_measures = measures_from_station(df_frome, label)
         for index,row in df_measures.iterrows():
-            readings = get_readings("1900-01-01", "2024-12-31", row["@id"])
-            readings.to_parquet(f"../datasets/River frome/{label}-{row['parameter']}-{row['period']}.parquet")
+            readings = get_readings("2010-01-01", "2024-12-31", row["@id"])
+            readings.to_parquet(f"../datasets/Hilden Brook/{label}-{row['parameter']}-{row['period']}.parquet")
         #print(df_measures.head)
+        
+        
+        
+    rain_labels = ['Leigh','Kiln Wood']
+    for label in rain_labels:
+        df_measures = measures_from_station(df_raingauges, label)
+        for index,row in df_measures.iterrows():
+            readings = get_readings("2010-01-01", "2024-12-31", row["@id"])
+            readings.to_parquet(f"../datasets/Hilden Brook/{label}-{row['parameter']}-{row['period']}.parquet")
+            
